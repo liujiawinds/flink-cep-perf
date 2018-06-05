@@ -1,0 +1,89 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*~
+*.iml
+*.ipr
+*.iws
+dependency-reduced-pom.xml
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+
+# scala
+######################
+.worksheet/*
+
+# py
+######################
+*.pyc
+*.pyo
+
+#eclipse
+#####################
+/target
+/.settings
+/.classpath
+.project
+.Rproj.user
+
+#intelliJ
+#####################
+/.idea
+.idea
+
+#sbt
+#####################
+/project/project
+/project/target
+
+#temp data
+#####################
+/tmp*
+
+#vim
+#####################
+*.swp
+*.swo
+
+/meta
+meta
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+# others
+.idea/
+
+_gen
