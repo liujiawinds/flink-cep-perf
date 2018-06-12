@@ -20,6 +20,6 @@ public class PeriodicTimestampExtractor implements AssignerWithPeriodicWatermark
 
     @Override
     public Watermark getCurrentWatermark() {
-        return new Watermark(currentMaxTimestamp);
+        return new Watermark(currentMaxTimestamp - (60 * 1000 * 10));
     }
 }

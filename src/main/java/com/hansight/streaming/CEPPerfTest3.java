@@ -1,5 +1,6 @@
 package com.hansight.streaming;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.hansight.streaming.utils.CEPUtil;
 
@@ -7,17 +8,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.CEP;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -27,26 +25,39 @@ import java.util.concurrent.atomic.AtomicLong;
  * Created by liujia on 2018/6/5.
  */
 public class CEPPerfTest3 {
-    private static final int TIMES_THRESHOLD = 3;
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-        KeyedStream<JSONObject, String> keyedStream = env.addSource(new PeriodicSourceFunction(TIMES_THRESHOLD))
+        KeyedStream<JSONObject, String> keyedStream = env.addSource(new PeriodicSourceFunction())
                 .assignTimestampsAndWatermarks(new PeriodicTimestampExtractor())
                 .keyBy((KeySelector<JSONObject, String>) value -> value.getString("user"));
 
-        Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("start")
+        // move more than 100km within 10 minutes
+        Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("prev")
                 .where(new SimpleCondition<JSONObject>() {
                     @Override
-                    public boolean filter(JSONObject value) throws Exception {
-                        // 00:00:00 - 06:00:00
-                        return CEPUtil.inTimeRange(0, 21600, value.getLong("event_time"));
+                    public boolean filter(JSONObject event) throws Exception {
+                        return event.getString("event_type").equals("logon");
                     }
                 })
-                .timesOrMore(TIMES_THRESHOLD).greedy()
-                .within(Time.seconds(21600));
+                .followedBy("curr")
+                .where(new IterativeCondition<JSONObject>() {
+                    @Override
+                    public boolean filter(JSONObject currentEvent, Context<JSONObject> ctx) throws Exception {
+                        if (!currentEvent.getString("event_type").equals("logon")) {
+                            return false;
+                        }
+                        Iterable<JSONObject> iterator = ctx.getEventsForPattern("prev");
+                        JSONObject previousEvent = null;
+                        for (JSONObject jsonObject : iterator) {
+                            previousEvent = jsonObject;
+                        }
+                        return CEPUtil.geoDistance(previousEvent.getString("geo"), currentEvent.getString("geo")) > 100;
+                    }
+                })
+                .within(Time.minutes(10));
 
         CEP.pattern(keyedStream, pattern)
                 .select(new PatternSelectFunction<JSONObject, List<JSONObject>>() {
@@ -62,63 +73,40 @@ public class CEPPerfTest3 {
 
     private static class PeriodicSourceFunction extends RichSourceFunction<JSONObject> {
         private AtomicLong index = new AtomicLong();
-        private AtomicLong userIndex = new AtomicLong();
         private long startTime;
-        // private long pause = 100;
-        private int threshold;
-        private List<String> users = new ArrayList<>(1003);
-        private String[] event_types = {"logon", "http", "file", "device", "email"};
-
         // no cancel trigger in this case
         private boolean running = true;
 
-        PeriodicSourceFunction(int eventCountThreshold) {
-            this.threshold = eventCountThreshold;
+        PeriodicSourceFunction() {
             startTime = System.currentTimeMillis();
         }
 
         public void run(SourceContext<JSONObject> ctx) throws Exception {
             while (running) {
                 if ((index.get() % 100) == 0) {
-                    for (int i = 0; i < threshold; i++) {
-                        ctx.collect(buildEvent());
-                    }
-                    userIndex.incrementAndGet();
+                    ctx.collect(buildEvent(true));
+                    ctx.collect(buildEvent(true));
                 } else {
-                    for (int i = 0; i < threshold - 1; i++) {
-                        ctx.collect(buildEvent());
-                    }
-                    userIndex.incrementAndGet();
+                    ctx.collect(buildEvent(false));
                 }
             }
         }
 
-        private JSONObject buildEvent() {
+        private JSONObject buildEvent(boolean isAnomaly) {
             JSONObject ret = new JSONObject();
             ret.put("id", index.getAndIncrement());
-            ret.put("user", users.get(Math.toIntExact(userIndex.get() % users.size())));
-            ret.put("event_type", event_types[random(0, 4)]);
-            ret.put("event_time", startTime += 5 * 1000);
-            return ret;
-        }
-
-        private int random(int min, int max) {
-            Random random = new Random();
-            return random.nextInt(max) % (max - min + 1) + min;
-        }
-
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            // change path when deploy
-
-            List<String> lines = Files.readAllLines(Paths.get("/home/sonice/users.csv"));
-//            List<String> lines = Files.readAllLines(Paths.get(ClassLoader.getSystemResource("users.csv").toURI()));
-            for (int i = 1; i < lines.size(); i++) {
-                String line = lines.get(i);
-                String[] fields = line.split(",", -1);
-                users.add(fields[1]);
+            ret.put("user", "liujia");
+            if (isAnomaly) {
+                // 遂宁
+                ret.put("geo", "30.5129375,105.4405871");
+                ret.put("event_time", startTime += 5 * 1000);
+            } else {
+                // 成都高新地铁站
+                ret.put("geo", "30.5959627,104.0565345");
+                ret.put("event_time", startTime += 10 * 1000 * 60);
             }
+            ret.put("event_type", "logon");
+            return ret;
         }
 
         public void cancel() {

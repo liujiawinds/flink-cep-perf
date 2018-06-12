@@ -10,9 +10,7 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.util.List;
@@ -32,21 +30,8 @@ public class CEPPerfTest1 {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
         KeyedStream<JSONObject, String> keyedStream = env.addSource(new PeriodicSourceFunction(TIMES_THRESHOLD))
-                .assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<JSONObject>() {
-                    private long currentMaxTimestamp;
-
-                    @Override
-                    public long extractTimestamp(JSONObject element, long previousElementTimestamp) {
-                        Long timestamp = element.getLong("event_time");
-                        currentMaxTimestamp = Math.max(timestamp, currentMaxTimestamp);
-                        return timestamp;
-                    }
-
-                    @Override
-                    public Watermark getCurrentWatermark() {
-                        return new Watermark(currentMaxTimestamp);
-                    }
-                }).keyBy((KeySelector<JSONObject, String>) value -> value.getString("user"));
+                .assignTimestampsAndWatermarks(new PeriodicTimestampExtractor())
+                .keyBy((KeySelector<JSONObject, String>) value -> value.getString("user"));
 
         Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("start")
                 .where(new SimpleCondition<JSONObject>() {
