@@ -98,7 +98,7 @@ public class CEPPerfTest7 {
         private Event buildEvent() {
             Event ret = new Event();
             ret.setId(index.getAndIncrement());
-            ret.setUser(names[random(0, 9)]);
+            ret.setUser("liujia");
             ret.setEventTime(startTime += 6 * 1000);
             ret.setEventType("logon");
             ret.setGeo(new double[]{30.5129375, 105.4405871});

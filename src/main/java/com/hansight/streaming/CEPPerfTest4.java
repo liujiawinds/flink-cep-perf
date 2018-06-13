@@ -88,7 +88,7 @@ public class CEPPerfTest4 {
     private static class PeriodicSourceFunction extends RichParallelSourceFunction<Event> {
         private AtomicLong index = new AtomicLong();
         private long startTime;
-//        private String[] names = {"kevin", "tony", "wurui", "sujun", "wuhao", "liujia", "liujia1", "liujia2", "liujia3"};
+        private String[] names = {"kevin", "tony", "wurui", "sujun", "wuhao", "liujia", "liujia1", "liujia2", "liujia3"};
         // no cancel trigger in this case
         private boolean running = true;
 
@@ -98,8 +98,7 @@ public class CEPPerfTest4 {
 
         public void run(SourceContext<Event> ctx) throws Exception {
             while (running) {
-                if ((index.get() % 10000) == 0) {
-                    ctx.collect(buildEvent(true));
+                if ((index.get() % 1000) == 0) {
                     ctx.collect(buildEvent(true));
                 } else {
                     ctx.collect(buildEvent(false));
@@ -110,7 +109,7 @@ public class CEPPerfTest4 {
         private Event buildEvent(boolean isAnomaly) {
             Event ret = new Event();
             ret.setId(index.getAndIncrement());
-            ret.setUser("liujia");
+            ret.setUser(names[random(0,9)]);
             ret.setEventTime(startTime += 6 * 1000);
             ret.setEventType("logon");
             if (isAnomaly) {

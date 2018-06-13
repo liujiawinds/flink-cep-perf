@@ -108,4 +108,4 @@ Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("prev")
 
  job 截图：![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/QQ20180607-164834.png)
  
- 
+使用jvsisualvm查看cpu 耗时 

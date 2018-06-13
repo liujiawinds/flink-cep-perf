@@ -1,6 +1,7 @@
 package com.hansight.streaming;
 
 import com.alibaba.fastjson.JSONObject;
+import com.hansight.streaming.utils.CEPUtil;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.CEP;
@@ -14,6 +15,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -22,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Created by liujia on 2018/6/5.
  */
-public class CEPPerfTest6 {
+public class CEPPerfTest8 {
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -44,7 +46,15 @@ public class CEPPerfTest6 {
                 .where(new IterativeCondition<JSONObject>() {
                     @Override
                     public boolean filter(JSONObject currentEvent, Context<JSONObject> ctx) throws Exception {
-                        return Math.random() * 100 > 99.99;
+                        if (!currentEvent.getString("event_type").equals("logon")) {
+                            return false;
+                        }
+                        Iterable<JSONObject> iterator = ctx.getEventsForPattern("prev");
+                        JSONObject previousEvent = null;
+                        for (JSONObject jsonObject : iterator) {
+                            previousEvent = jsonObject;
+                        }
+                        return CEPUtil.geoDistance(previousEvent.getString("geo"), currentEvent.getString("geo")) > 100;
                     }
                 })
                 .within(Time.minutes(10));
