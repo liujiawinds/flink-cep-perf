@@ -98,9 +98,9 @@ Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("prev")
  job 截图：![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/QQ20180607-162121.png)
  
  
- - 时间范围内的数据很多，但是距离不足100km
+ - 时间范围内的数据很多（每个窗口内包含100条数据），但是距离不足100km
  
- [测试代码](https://github.com/liujiawinds/flink-cep-perf/blob/master/src/main/java/com/hansight/streaming/CEPPerfTest4.java)
+ [测试代码](https://github.com/liujiawinds/flink-cep-perf/blob/master/src/main/java/com/hansight/streaming/CEPPerfTest8.java)
 
 ```
 性能情况很差了，3.5k eps
@@ -108,4 +108,27 @@ Pattern<JSONObject, JSONObject> pattern = Pattern.<JSONObject>begin("prev")
 
  job 截图：![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/QQ20180607-164834.png)
  
-使用jvsisualvm查看cpu 耗时 
+使用jvsisualvm查看cpu 抽样耗时70%消耗在 geo运算上面，因为窗口内的数据会两两进行位置运算，所以每一条数据到来都会进行100次的geo运算。
+
+
+- 时间范围内的数据减少至10个，每10个事件插入一个异常登录点的事件
+
+[测试代码](https://github.com/liujiawinds/flink-cep-perf/blob/master/src/main/java/com/hansight/streaming/CEPPerfTest4.java)
+
+```
+性能情况变好，接近9w eps
+```
+
+ job 截图：![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/less%20data%20in%20window.png)
+ 
+再看jvisualvm 查看cpu 抽样耗时64在fastjson 的jsonobject hashcode方法上了（CEP的SharedBuffer在查询数据的时候会调用事件的hashCode方法）。改用自己写的实体类替换，性能提升2倍。（对比测试代码为：[改前](https://github.com/liujiawinds/flink-cep-perf/blob/master/src/main/java/com/hansight/streaming/CEPPerfTest6.java)
+，[改后](https://github.com/liujiawinds/flink-cep-perf/blob/master/src/main/java/com/hansight/streaming/CEPPerfTest7.java)）这个留待以后需要的时候进行优化。
+![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/QQ20180612-173831.png)
+
+JSONObject:
+
+![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/QQ20180613-103508.png)
+
+自己写的Event实体类：
+
+![dashborad Screenshot](https://github.com/liujiawinds/flink-cep-perf/blob/master/screenshots/QQ20180613-103639.png)
